@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Counters</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1e120a">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="description" content="Counters: the Ghanaian crown cap flicking game. Cover half the other cap to score.">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -41,6 +47,13 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);overflow:hidd
 .champ .badge{font-size:12px;color:var(--gold)}
 .champ:disabled{opacity:.4;cursor:not-allowed}
 .record{font-size:13px!important}
+a.btn{display:flex;align-items:center;justify-content:center;text-decoration:none;font:600 15px/1 var(--body);border-radius:999px;min-height:46px}
+a.btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.wa{background:#25d366;color:#06301a}
+.linkbox,#nameInput{width:100%;box-sizing:border-box;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:11px 12px;font:15px var(--body)}
+#nameInput:focus-visible,.linkbox:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+.err{color:var(--red)!important;font-size:13px!important;min-height:1.3em}
+.hint{font-size:13px!important}
 .mark{font-family:var(--display);font-size:clamp(20px,6vw,28px);white-space:nowrap;line-height:1;text-align:center;letter-spacing:.01em}
 .mark span{display:block;font-family:var(--body);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-top:5px}
 .status{text-align:center;font-size:15px;line-height:1.4;color:var(--muted);min-height:2.8em;text-wrap:balance;margin:0}
@@ -101,6 +114,7 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
         <h2 class="big">Counters</h2>
         <p>Flick your crown cap onto the other cap. Cover <b>half or more</b> to score. First to 5 points wins.</p>
         <button class="primary" id="goLadder">Champions ladder<span class="tag" id="ladderTag" style="color:var(--gold-ink)"></span></button>
+        <button id="goDuel">WhatsApp duel</button>
         <button id="go2p">2 players on one phone</button>
         <div class="cpu">
           <span class="label">Play the computer</span>
@@ -112,6 +126,8 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
         <button id="goLevels">Challenges<span class="tag" id="starTotal"></span></button>
         <button id="goCaps">Choose caps</button>
         <p class="record" id="record"></p>
+        <button id="installBtn" hidden>Install the app</button>
+        <p class="hint" id="iosHint" hidden>To install on iPhone, tap Share, then Add to Home Screen.</p>
       </div>
     </div>
 
@@ -149,6 +165,40 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
         <div class="stars" id="resStars" hidden></div>
         <p id="resText"></p>
         <div class="row" id="resBtns"></div>
+      </div>
+    </div>
+
+    <div class="overlay" id="send" hidden>
+      <div class="card">
+        <h2 id="sendTitle">Send your turn</h2>
+        <p id="sendText"></p>
+        <a class="btn wa" id="waBtn" href="https://wa.me/" target="_blank" rel="noopener">Send on WhatsApp</a>
+        <button id="shareBtn" hidden>Share another way</button>
+        <input class="linkbox" id="linkBox" readonly aria-label="Duel link">
+        <button id="copyBtn">Copy link</button>
+        <p class="hint" id="copyNote" aria-live="polite"></p>
+        <div class="row"><button id="sendDuels">Your duels</button><button id="sendMenu">Menu</button></div>
+      </div>
+    </div>
+
+    <div class="overlay" id="nameBox" hidden>
+      <form class="card" id="nameForm" novalidate>
+        <h2>Your name</h2>
+        <p>Your friend sees this name on the scoreboard.</p>
+        <input id="nameInput" maxlength="16" autocomplete="nickname" aria-label="Your name" placeholder="For example, Kofi">
+        <p class="err" id="nameErr" aria-live="polite"></p>
+        <button class="primary" type="submit">Continue</button>
+        <button type="button" id="nameCancel">Cancel</button>
+      </form>
+    </div>
+
+    <div class="overlay" id="duels" hidden>
+      <div class="card">
+        <h2>WhatsApp duels</h2>
+        <p>Play a friend one flick at a time. Each turn is a link you send on WhatsApp.</p>
+        <button class="primary" id="newDuel">Start a new duel</button>
+        <div class="lad" id="duelList"></div>
+        <button id="duelsBack">Back</button>
       </div>
     </div>
 
@@ -424,9 +474,9 @@ function showSign(){const sc=SCENES[state.scene];sign={text:sc.name.toUpperCase(
 function say(kind,x,y,col){const a=SAY[kind];callout={text:a[Math.floor(Math.random()*a.length)],x,y,col:col||'#f6ead2',t:0}}
 function onEvent(t,c){
   sound(t);
-  if(t==='cap')buzz(30);
+  if(t==='cap'&&!replay)buzz(30);
   if(t==='hit'&&!callout)say('push',c.x,c.y-40,'#f2d24b');
-  if(t==='off'){falls.push({x:c.x,y:c.y,owner:c.owner,flip:c.flip,spin:c.spin,t:0});buzz(60)}
+  if(t==='off'){falls.push({x:c.x,y:c.y,owner:c.owner,flip:c.flip,spin:c.spin,t:0});if(!replay)buzz(60)}
   if(t==='land'||t==='cap'){
     const col=game.surf==='concrete'?'225,215,195':game.surf==='cloth'?'235,215,150':'240,205,160';
     for(let k=0;k<(t==='cap'?14:9);k++){const a=Math.random()*6.28,sp=30+Math.random()*70;parts.push({x:c.x+Math.cos(a)*R*.8,y:c.y+Math.sin(a)*R*.8,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,col,r:1+Math.random()*1.8})}
@@ -440,9 +490,9 @@ let state,turn=0,starter=0,scores=[0,0],phase='menu',drag=null,ai=null,epoch=0,s
 let streak=[0,0],skip=[false,false],clock=0,lastTick=-1,falls=[],ladderWon=0;
 let stats={matches:0,wins:0,gbam:0,best:0,cur:0};
 let stars=new Array(LEVELS.length).fill(0);
-const duelMode=()=>game.mode==='2p'||game.mode==='cpu'||game.mode==='ladder';
+const duelMode=()=>game.mode==='2p'||game.mode==='cpu'||game.mode==='ladder'||game.mode==='remote';
 const isCPU=i=>(game.mode==='cpu'||game.mode==='ladder')&&i===1;
-const nameOf=i=>i===0?'Gold':game.mode==='ladder'?LADDER[game.ladder].name:game.mode==='cpu'?'Computer':'Green';
+const nameOf=i=>game.mode==='remote'&&remote?(remote.names[i]||(i===remote.seat?'You':'Friend')):i===0?'Gold':game.mode==='ladder'?LADDER[game.ladder].name:game.mode==='cpu'?'Computer':'Green';
 const aiCfg=()=>game.mode==='ladder'?LADDER[game.ladder].ai:DIFF[game.diff];
 const points=f=>f>=.95?3:f>=.75?2:1;
 const pinned=i=>!!state&&state.caps.some(c=>!c.off&&c.top===i);
@@ -452,8 +502,8 @@ function makeState(caps,bottlesList,surf,edge){game.surf=surf;return{caps,bottle
 function startSpot(i){return i===0?{x:W/2,y:H-78}:{x:W/2,y:78}}
 function randBottles(n,caps){const out=[];let tries=0;while(out.length<n&&tries<300){tries++;const x=T.x+50+Math.random()*(T.w-100),y=T.y+150+Math.random()*(T.h-300);if(caps.some(c=>Math.hypot(c.x-x,c.y-y)<85))continue;if(out.some(b=>Math.hypot(b[0]-x,b[1]-y)<75))continue;out.push([x,y])}return out}
 
-function hideOverlays(){['menu','levels','result','rules','caps','ladder'].forEach(id=>$(id).hidden=true)}
-function startMatch(){scores=[0,0];streak=[0,0];starter=0;game.round=0;startDuel()}
+function hideOverlays(){['menu','levels','result','rules','caps','ladder','send','nameBox','duels'].forEach(id=>$(id).hidden=true)}
+function startMatch(){scores=[0,0];streak=[0,0];starter=game.mode==='remote'&&remote?remote.seat:0;game.round=0;startDuel()}
 function startDuel(){
   epoch++;ai=null;drag=null;meter=null;callout=null;falls=[];hideOverlays();
   const surfs=['wood','concrete','cloth','oily'],j=()=>(Math.random()-.5)*50;
@@ -479,6 +529,7 @@ function startLevel(i){
 }
 function turnText(){return isCPU(turn)?`<b>${nameOf(turn)}</b> is lining up a shot.`:`<b>${nameOf(turn)}</b> to flick.`}
 function beginTurn(prefix){
+  if(game.mode==='remote'&&remote&&turn!==remote.seat){handOff(prefix);return}
   phase='aim';clock=0;lastTick=-1;
   const hint=shots===0&&!isCPU(turn)&&game.round===0&&!prefix.includes('Round')?' Press your cap, pull back, let go.':'';
   const pin=pinned(turn)?' Pinned: half power.':'';
@@ -504,11 +555,11 @@ function updateHUD(){
   }else{
     [0,1].forEach(i=>{
       $('name'+i).textContent=duelMode()&&streak[i]>=2?'On fire':nameOf(i);
-      $('score'+i).textContent=scores[i];
+      $('score'+i).textContent=game.mode==='menu'?0:scores[i];
       $('chip'+i).classList.toggle('on',duelMode()&&turn===i&&(phase==='aim'||phase==='wait'||phase==='aiaim'));
       $('chip'+i).classList.toggle('fire',duelMode()&&streak[i]>=2);
     });
-    $('sub').textContent=game.mode==='ladder'?LADDER[game.ladder].place:game.mode==='cpu'?`vs CPU · ${game.diff}`:`First to ${MATCH}`;
+    $('sub').textContent=game.mode==='ladder'?LADDER[game.ladder].place:game.mode==='cpu'?`vs CPU · ${game.diff}`:game.mode==='remote'?'WhatsApp duel':`First to ${MATCH}`;
   }
   document.querySelectorAll('[data-d]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.d===game.diff));
   $('soundBtn').setAttribute('aria-pressed',!muted);$('soundBtn').textContent=muted?'Sound off':'Sound on';
@@ -517,6 +568,7 @@ function updateHUD(){
   $('record').innerHTML=stats.matches?`<b>Your record vs the computer:</b> ${stats.wins} won of ${stats.matches} · best streak ${stats.best} · ${stats.gbam} Gbam cover${stats.gbam===1?'':'s'}`:'Win matches against the computer to build your record.';
 }
 function doLaunch(i,a,p){
+  if(game.mode==='remote'&&remote&&!replay)remote.pending={by:i,pre:snapshot(),a:+a.toFixed(5),p:+p.toFixed(5),sc:scores.slice(),rd:game.round};
   launch(state,i,a,p);sound('flick');phase='flight';acc=0;shots++;
   if(game.mode==='level'){shotsLeft--;shotsUsed++}
   updateHUD();
@@ -551,6 +603,10 @@ function outcome(){
   else if(o&&f>=.5){say('win',m.x,m.y-50,'#7be08f');setMood('cheer');sound('cheer')}
   else if(o&&f>=.25){say('near',m.x,m.y-50,'#f2a25b');setMood('ooh');sound('ooh')}
   else{say('miss',m.x,m.y-50,'#f6ead2');setMood('groan')}
+  if(replay){
+    const r=replay,pre=r.ls.sc||[0,0],scored=!!(o&&o.owner===1-me&&f>=.5),claimed=r.sc[0]+r.sc[1]>pre[0]+pre[1];
+    phase='replaydone';later(()=>applyCurrent(r,scored!==claimed?'Heads up: this flick replayed a little differently on your phone.':''),1600);return;
+  }
   if(game.mode==='level'){
     const L=LEVELS[game.level];bestCover=Math.max(bestCover,f);
     if(o&&o.owner==='target'&&f>=.5){
@@ -582,14 +638,14 @@ function outcome(){
     phase='over';shake=8;sound('win');
     const pts=points(f),bonus=streak[me]>=2?1:0,gain=pts+bonus;
     scores[me]+=gain;streak[me]++;streak[1-me]=0;
-    if(pts===3&&me===0&&game.mode!=='2p'){stats.gbam++;save()}
+    if(pts===3&&me===0&&(game.mode==='cpu'||game.mode==='ladder')){stats.gbam++;save()}
     if(callout)callout.text+=`  +${gain}`;
     const wn=nameOf(me);
     setStatus(`<b>${wn}</b> covered ${pct}% for ${pts} point${pts>1?'s':''}${bonus?', plus 1 for being on fire':''}.`);
     updateHUD();
     if(scores[me]>=MATCH){
       const youWin=me===0;
-      if(game.mode!=='2p'){stats.matches++;if(youWin){stats.wins++;stats.cur++;stats.best=Math.max(stats.best,stats.cur)}else stats.cur=0}
+      if(game.mode==='cpu'||game.mode==='ladder'){stats.matches++;if(youWin){stats.wins++;stats.cur++;stats.best=Math.max(stats.best,stats.cur)}else stats.cur=0}
       let text=`Final score <b>${scores[0]}–${scores[1]}</b>.`;const btns=[];
       if(game.mode==='ladder'){
         const C=LADDER[game.ladder],nx=LADDER[game.ladder+1];
@@ -599,6 +655,10 @@ function outcome(){
           if(nx)btns.push(['Next champion',()=>{game.ladder++;startMatch()},true]);
         }else text+=` ${C.name} wins this time.`;
         btns.push(['Rematch',startMatch,!btns.length]);btns.push(['Ladder',openLadder]);
+      }else if(game.mode==='remote'){
+        remote.end={w:me};remote.lastShot=remote.pending||remote.lastShot;remote.pending=null;remote.seq++;
+        const rp=payload();storeDuel(rp,remote.seat);
+        btns.push(['Send result',()=>openSend(rp,true),true]);btns.push(['Rematch',rematch]);btns.push(['Menu',openMenu]);
       }else{btns.push(['Rematch',startMatch,true]);btns.push(['Menu',openMenu])}
       save();updateHUD();
       later(()=>{sound('cheer');showResult(`${wn} wins the match`,me===0?PL[0].color:PL[1].color,text,null,btns)},1300);
@@ -684,11 +744,167 @@ function renderSw(pi){
 $('goCaps').onclick=()=>{hideOverlays();$('caps').hidden=false;renderSw(0);renderSw(1);setStatus('Pick a design for each cap.');$('capsDone').focus({preventScroll:true})};
 $('capsDone').onclick=openMenu;
 $('menuBtn').onclick=openMenu;
-$('resetBtn').onclick=()=>{audio();if(game.mode==='level')startLevel(game.level);else if(game.mode==='menu')openMenu();else startMatch()};
+$('resetBtn').onclick=()=>{audio();if(game.mode==='level')startLevel(game.level);else if(game.mode==='menu')openMenu();else if(game.mode==='remote')openDuels();else startMatch()};
 $('rulesBtn').onclick=()=>{$('rules').hidden=false;$('rulesClose').focus({preventScroll:true})};
 $('rulesClose').onclick=()=>{$('rules').hidden=true};
 document.addEventListener('keydown',e=>{if(e.key==='Escape')$('rules').hidden=true});
 $('soundBtn').onclick=()=>{audio();muted=!muted;save();updateHUD()};
+
+/* ---------- WhatsApp duels ---------- */
+const SITE='https://unknowntitan.github.io/CountersBattle/';
+const SHARE_BASE=location.hostname.endsWith('github.io')?location.origin+location.pathname:SITE;
+const SALT='counters-duel-1';
+let remote=null,replay=null,myName='',pendingName=null;
+const clean=s=>String(s||'').replace(/[<>&"'`]/g,'').replace(/\s+/g,' ').trim().slice(0,16);
+function fnv(s){let h=0x811c9dc5;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0}return h.toString(36)}
+function encode(o){const j=JSON.stringify(o),s=j+'~'+fnv(SALT+j);return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
+function decode(e){
+  try{
+    e=e.replace(/-/g,'+').replace(/_/g,'/');while(e.length%4)e+='=';
+    const s=decodeURIComponent(escape(atob(e))),k=s.lastIndexOf('~'),j=s.slice(0,k);
+    if(k<0||fnv(SALT+j)!==s.slice(k+1))return null;
+    const o=JSON.parse(j);
+    if(o.v!==1||!o.id||!o.cur||!Array.isArray(o.cur.caps)||o.cur.caps.length!==2)return null;
+    o.n=(o.n||[]).map(clean);o.id=String(o.id).replace(/[^a-z0-9]/gi,'').slice(0,16);
+    return o;
+  }catch(err){return null}
+}
+const rid=()=>Math.random().toString(36).slice(2,10);
+function snapshot(){return{caps:state.caps.map(c=>({x:+c.x.toFixed(2),y:+c.y.toFixed(2),t:c.top,f:+c.flip.toFixed(3),s:+c.spin.toFixed(3)})),b:state.bottles.map(b=>[+b.x.toFixed(1),+b.y.toFixed(1)]),u:state.surf}}
+function restore(sn){
+  const caps=sn.caps.map((c,i)=>{const n=newCap(+c.x||W/2,+c.y||H/2,i);n.top=c.t===0||c.t===1?c.t:-1;n.flip=+c.f||0;n.spin=+c.s||0;return n});
+  state=makeState(caps,(sn.b||[]).slice(0,4),SURF[sn.u]?sn.u:'wood',true);
+}
+function payload(){return{v:1,id:remote.id,n:remote.names,sc:scores.slice(),sk:streak.slice(),kp:skip.slice(),rd:game.round,sr:starter,tn:turn,seq:remote.seq,cur:snapshot(),ls:remote.lastShot,end:remote.end||null}}
+function duelStore(){try{return JSON.parse(localStorage.getItem('counters-duels')||'{}')}catch(e){return{}}}
+function storeDuel(p,seat){
+  try{const d=duelStore();d[p.id]={p,seat,seq:p.seq,t:Date.now()};
+    const ids=Object.keys(d).sort((a,b)=>d[b].t-d[a].t);ids.slice(20).forEach(k=>delete d[k]);
+    localStorage.setItem('counters-duels',JSON.stringify(d))}catch(e){}
+}
+function loadName(){try{myName=clean(localStorage.getItem('counters-name'))}catch(e){}}
+function needName(cb){
+  if(myName){cb();return}
+  pendingName=cb;hideOverlays();$('nameBox').hidden=false;$('nameErr').textContent='';$('nameInput').value='';
+  setStatus('Tell your friend who is flicking.');setTimeout(()=>$('nameInput').focus({preventScroll:true}),50);
+}
+$('nameForm').addEventListener('submit',e=>{
+  e.preventDefault();const v=clean($('nameInput').value);
+  if(!v){$('nameErr').textContent='Enter a name so your friend knows who sent the duel.';return}
+  myName=v;try{localStorage.setItem('counters-name',v)}catch(err){}
+  $('nameBox').hidden=true;const cb=pendingName;pendingName=null;cb&&cb();
+});
+$('nameInput').addEventListener('input',()=>{$('nameErr').textContent=''});
+$('nameCancel').onclick=openMenu;
+
+function startRemoteNew(){
+  game.mode='remote';remote={id:rid(),seat:0,names:[myName,''],seq:0,lastShot:null,pending:null,end:null};
+  startMatch();
+}
+function rematch(){
+  const old=remote;game.mode='remote';
+  remote={id:rid(),seat:old.seat,names:old.names.slice(),seq:0,lastShot:null,pending:null,end:null};
+  startMatch();
+}
+function handOff(prefix){
+  phase='handoff';drag=null;
+  remote.lastShot=remote.pending||remote.lastShot;remote.pending=null;remote.seq++;
+  const p=payload();storeDuel(p,remote.seat);
+  setStatus((prefix?prefix+' ':'')+`<b>${nameOf(turn)}</b> plays next. Send the link.`);
+  updateHUD();openSend(p,false);
+}
+function shareText(p,final){
+  const url=SHARE_BASE+'#d='+encode(p),me=remote.seat,opp=1-me;
+  const oppName=remote.names[opp]||'';
+  if(final){const w=p.end.w;return{url,msg:`${w===me?'I won':nameOf(w)+' won'} our Counters duel ${p.sc[me]}–${p.sc[opp]}. Rematch? ${url}`}}
+  return{url,msg:`${oppName?oppName+', y':'Y'}our flick in Counters! Score ${p.sc[me]}–${p.sc[opp]} to ${remote.names[me]||'me'}. Tap to play: ${url}`};
+}
+let sendData=null;
+function openSend(p,final){
+  const s=shareText(p,final);sendData=s;
+  $('sendTitle').textContent=final?'Send the result':'Send your turn';
+  $('sendText').innerHTML=final?'Let your friend see the final shot.':`Your turn is done. Send this link to <b>${remote.names[1-remote.seat]||'your friend'}</b> on WhatsApp so they can play their flick.`;
+  $('waBtn').href='https://wa.me/?text='+encodeURIComponent(s.msg);
+  $('linkBox').value=s.url;$('copyNote').textContent='';
+  $('shareBtn').hidden=!navigator.share;
+  hideOverlays();$('send').hidden=false;
+}
+$('copyBtn').onclick=()=>{
+  const box=$('linkBox');
+  const fallback=()=>{box.focus();box.select();$('copyNote').textContent='Link selected. Copy it from your keyboard menu.'};
+  try{navigator.clipboard.writeText(box.value).then(()=>{$('copyNote').textContent='Link copied.'},fallback)}catch(e){fallback()}
+};
+$('shareBtn').onclick=()=>{if(sendData&&navigator.share)navigator.share({text:sendData.msg}).catch(()=>{})};
+$('sendMenu').onclick=openMenu;
+$('sendDuels').onclick=openDuels;
+
+function receive(enc){
+  const p=decode(enc);
+  if(!p){showResult('This link is broken','var(--red)','The duel link was cut off or changed. Ask your friend to send it again.',null,[['Menu',openMenu,true]]);return}
+  const st=duelStore()[p.id];
+  if(st&&st.seq>p.seq){loadDuel(p.id,'You already played past this turn.');return}
+  const seat=st?st.seat:(p.end?1:p.tn);
+  const go=()=>{
+    if(seat===1&&!p.n[1])p.n[1]=myName;
+    if(seat===0&&!p.n[0])p.n[0]=myName;
+    epoch++;hideOverlays();game.mode='remote';
+    remote={id:p.id,seat,names:p.n.slice(0,2),seq:p.seq,lastShot:p.ls,pending:null,end:p.end||null};
+    storeDuel(p,seat);
+    const fresh=!st||st.seq<p.seq;
+    if(p.ls&&p.ls.by!==seat&&fresh&&p.ls.pre){
+      restore(p.ls.pre);scores=(p.ls.sc||p.sc).slice();turn=p.ls.by;streak=[0,0];
+      replay=p;phase='replaywait';updateHUD();
+      setStatus(`Watch <b>${nameOf(p.ls.by)}</b>'s flick.`);
+      const e=epoch;setTimeout(()=>{if(e===epoch&&replay===p)doLaunch(p.ls.by,+p.ls.a||0,Math.max(0,Math.min(1,+p.ls.p||0)))},1300);
+    }else applyCurrent(p);
+  };
+  if(seat===1&&!p.n[1])needName(go);else go();
+}
+function applyCurrent(p,note){
+  epoch++;replay=null;meter=null;
+  restore(p.cur);scores=p.sc.slice();streak=(p.sk||[0,0]).slice();skip=(p.kp||[false,false]).slice();
+  game.round=p.rd|0;starter=p.sr|0;turn=p.tn===1?1:0;remote.end=p.end||null;
+  if(p.end){
+    phase='over';updateHUD();const w=p.end.w===1?1:0;
+    setStatus(`Duel over. <b>${nameOf(w)}</b> won ${scores[w]}–${scores[1-w]}.`);
+    showResult(`${nameOf(w)} wins the duel`,PL[w].color,`Final score <b>${scores[0]}–${scores[1]}</b>.`,null,[['Rematch',rematch,true],['Your duels',openDuels],['Menu',openMenu]]);
+    return;
+  }
+  const newRound=p.ls&&p.ls.rd!==p.rd;
+  if(newRound)showSign();
+  if(turn===remote.seat){phase='aim';beginTurn(`${note?note+' ':''}${newRound?'New round. ':''}Your turn.`)}
+  else{phase='handoff';updateHUD();setStatus(`${note?note+' ':''}Waiting for <b>${nameOf(turn)}</b>.`);openSend(p,false)}
+}
+function loadDuel(id,note){
+  const st=duelStore()[id];if(!st){openDuels();return}
+  hideOverlays();game.mode='remote';
+  remote={id,seat:st.seat,names:st.p.n.slice(0,2),seq:st.p.seq,lastShot:st.p.ls,pending:null,end:st.p.end||null};
+  applyCurrent(st.p,note);
+}
+function openDuels(){
+  epoch++;ai=null;drag=null;replay=null;phase='menu';game.mode='menu';hideOverlays();
+  const d=duelStore(),ids=Object.keys(d).sort((a,b)=>d[b].t-d[a].t),list=$('duelList');list.innerHTML='';
+  if(!ids.length)list.innerHTML='<p>No duels yet. Start one and send it to a friend.</p>';
+  ids.forEach(id=>{
+    const {p,seat}=d[id],opp=1-seat,on=p.n[opp]||'Friend';
+    const status=p.end?(p.end.w===seat?'You won':'You lost'):p.tn===seat?'Your turn':`Waiting for ${on}`;
+    const b=document.createElement('button');b.className='champ';
+    b.innerHTML=`<span class="rk">${p.sc[seat]}–${p.sc[opp]}</span><span><span class="nm">vs ${on}</span><span class="pl">${status}</span></span><span class="badge">${p.end?'View':p.tn===seat?'Play':'Resend'}</span>`;
+    b.onclick=()=>{audio();loadDuel(id)};list.appendChild(b);
+  });
+  $('duels').hidden=false;setStatus('Play a friend over WhatsApp, one flick at a time.');updateHUD();
+}
+$('goDuel').onclick=()=>{audio();openDuels()};
+$('newDuel').onclick=()=>{audio();needName(startRemoteNew)};
+$('duelsBack').onclick=openMenu;
+
+/* ---------- install ---------- */
+let installEvt=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvt=e;$('installBtn').hidden=false});
+$('installBtn').onclick=()=>{if(!installEvt)return;installEvt.prompt();installEvt.userChoice.finally(()=>{installEvt=null;$('installBtn').hidden=true})};
+const standalone=window.matchMedia&&matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+if(/iphone|ipad|ipod/i.test(navigator.userAgent)&&!standalone&&location.hostname.endsWith('github.io'))$('iosHint').hidden=false;
+if('serviceWorker' in navigator&&location.protocol==='https:'&&location.hostname.endsWith('github.io')){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
 
 /* ---------- input ---------- */
 function toWorld(e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left-ox)/scale,y:(e.clientY-r.top-oy)/scale}}
@@ -827,7 +1043,7 @@ function draw(t){
   for(const p of parts){ctx.fillStyle=`rgba(${p.col},${p.life*.7})`;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill()}
   const order=state.caps.map((c,i)=>i).sort((a,b)=>{const r=i=>state.caps[i].z>0?100:depth(i);return r(a)-r(b)});
   if(phase==='aim'&&!drag){const c=state.caps[turn];ctx.strokeStyle=PL[turn].color;ctx.globalAlpha=.55+.35*Math.sin(t*4);ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(c.x,c.y,R+6+Math.sin(t*4)*2,0,7);ctx.stroke();ctx.globalAlpha=1}
-  if(phase==='aim'&&duelMode()&&!isCPU(turn)){const c=state.caps[turn],left=Math.max(0,CLOCK-clock),fr=left/CLOCK,hot=left<=4;
+  if(phase==='aim'&&duelMode()&&game.mode!=='remote'&&!isCPU(turn)){const c=state.caps[turn],left=Math.max(0,CLOCK-clock),fr=left/CLOCK,hot=left<=4;
     ctx.lineWidth=3;ctx.strokeStyle=hot?'#e0583f':'rgba(246,234,210,.55)';ctx.beginPath();ctx.arc(c.x,c.y,R+13,-Math.PI/2,-Math.PI/2+fr*Math.PI*2);ctx.stroke();
     if(hot){ctx.font='20px "Bowlby One", Impact, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=4;ctx.strokeStyle='rgba(20,10,4,.9)';const ty=c.y<120?c.y+R+30:c.y-R-26;ctx.strokeText(Math.ceil(left),c.x,ty);ctx.fillStyle='#e0583f';ctx.fillText(Math.ceil(left),c.x,ty)}}
   falls.forEach(fl=>{const k=Math.min(1,fl.t/.6),fi=fl.owner==='target'?2:fl.owner,img=face(fi,fi===2?'star':designs[fi],Math.cos(fl.flip)>=0),s=img.width/3*(1-k*.7);
@@ -854,7 +1070,7 @@ function frame(now){
   if(phase==='aiaim'&&ai){ai.t+=dt;if(ai.t>=ai.dur+.15){const a=ai;ai=null;doLaunch(turn,a.a,a.p*a.mult)}}
   state.caps.forEach(c=>{if(c.wob>0)c.wob=Math.max(0,c.wob-dt*2.2)});
   falls.forEach(f=>f.t+=dt);falls=falls.filter(f=>f.t<.7);
-  if(phase==='aim'&&duelMode()&&!isCPU(turn)&&$('rules').hidden&&$('result').hidden){
+  if(phase==='aim'&&duelMode()&&game.mode!=='remote'&&!isCPU(turn)&&$('rules').hidden&&$('result').hidden){
     clock+=dt;const left=CLOCK-clock,sec=Math.ceil(left);
     if(left<=3&&sec!==lastTick&&sec>0){lastTick=sec;sound('tick')}
     if(left<=0)autoFlick();
@@ -867,10 +1083,11 @@ function frame(now){
   if(callout){callout.t+=dt;if(callout.t>1.8)callout=null}
   draw(now/1000);requestAnimationFrame(frame);
 }
-load();
+load();loadName();
 state=makeState([newCap(W*.38,H*.66,0),newCap(W*.62,H*.36,1)],[],'wood',false);
 openMenu();
 requestAnimationFrame(frame);
+if(location.hash.startsWith('#d=')){const enc=location.hash.slice(3);try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}receive(enc)}
 })();
 </script>
 </body>
